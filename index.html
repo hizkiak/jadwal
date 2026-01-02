@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>My Schedule</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --surface: #16161a;
+            --accent: #4ade80;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+            --border: #27272a;
+        }
+
+        * { 
+            margin: 0; padding: 0; box-sizing: border-box; 
+            /* Mencegah highlight biru saat klik di HP */
+            -webkit-tap-highlight-color: transparent; 
+        }
+        
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            padding: 20px; /* Padding lebih kecil untuk HP */
+            overflow-x: hidden;
+        }
+
+        .container { max-width: 500px; margin: 0 auto; }
+
+        header { margin: 20px 0 30px 5px; }
+        header h1 { font-size: 28px; font-weight: 700; }
+        header p { color: var(--text-dim); font-size: 14px; margin-top: 5px; }
+
+        .input-card {
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            margin-bottom: 35px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        input, select {
+            background: #000;
+            border: 1px solid var(--border);
+            padding: 16px; /* Padding lebih besar agar mudah diketik */
+            border-radius: 14px;
+            color: #fff;
+            font-size: 16px; /* Font 16px mencegah iPhone auto-zoom */
+            outline: none;
+            width: 100%;
+            appearance: none; /* Bersihkan style default browser */
+        }
+
+        input:focus { border-color: var(--accent); }
+
+        .btn-add {
+            background: var(--accent);
+            color: #064e3b;
+            border: none;
+            padding: 18px;
+            border-radius: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 5px;
+        }
+
+        .btn-add:active { transform: scale(0.98); opacity: 0.8; }
+
+        .day-group { margin-bottom: 25px; }
+        .day-label { 
+            font-size: 11px; 
+            font-weight: 800; 
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0 0 12px 10px;
+            display: block;
+        }
+
+        .item {
+            background: var(--surface);
+            padding: 18px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .item-info h3 { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+        .item-meta { font-size: 13px; color: var(--text-dim); }
+
+        .btn-del {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: none;
+            width: 40px; height: 40px; /* Ukuran pas untuk jempol */
+            border-radius: 12px;
+            font-size: 20px;
+            display: flex; align-items: center; justify-content: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1 id="welcome-msg">Jadwal Kuliah</h1>
+            <p id="current-date"></p>
+        </header>
+
+        <div class="input-card">
+            <input type="text" id="course" placeholder="Mata Kuliah">
+            <div class="row">
+                <select id="day">
+                    <option>Senin</option><option>Selasa</option><option>Rabu</option>
+                    <option>Kamis</option><option>Jumat</option><option>Sabtu</option>
+                </select>
+                <input type="text" id="time" placeholder="Jam (08:00)">
+            </div>
+            <input type="text" id="room" placeholder="Ruang Kelas">
+            <button class="btn-add" onclick="add()">+ Tambah ke Jadwal</button>
+        </div>
+
+        <div id="list"></div>
+    </div>
+
+    <script>
+        let schedule = JSON.parse(localStorage.getItem('dark_schedule')) || [];
+
+        function add() {
+            const course = document.getElementById('course').value;
+            const day = document.getElementById('day').value;
+            const time = document.getElementById('time').value;
+            const room = document.getElementById('room').value;
+
+            if(!course || !time || !room) return;
+
+            schedule.push({ id: Date.now(), course, day, time, room });
+            save();
+            
+            document.getElementById('course').value = '';
+            document.getElementById('time').value = '';
+            document.getElementById('room').value = '';
+            
+            // Memberikan getaran kecil saat berhasil (Hanya di beberapa HP Android)
+            if (window.navigator.vibrate) window.navigator.vibrate(50);
+        }
+
+        function remove(id) {
+            if(confirm('Hapus jadwal ini?')) {
+                schedule = schedule.filter(i => i.id !== id);
+                save();
+            }
+        }
+
+        function save() {
+            localStorage.setItem('dark_schedule', JSON.stringify(schedule));
+            render();
+        }
+
+        function render() {
+            const list = document.getElementById('list');
+            list.innerHTML = '';
+            const days = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+
+            days.forEach(d => {
+                const filtered = schedule.filter(i => i.day === d);
+                if(filtered.length > 0) {
+                    let html = `<div class="day-group"><span class="day-label">${d}</span>`;
+                    filtered.forEach(i => {
+                        html += `
+                        <div class="item">
+                            <div class="item-info">
+                                <h3>${i.course}</h3>
+                                <div class="item-meta">${i.time} &bull; ${i.room}</div>
+                            </div>
+                            <button class="btn-del" onclick="remove(${i.id})">&times;</button>
+                        </div>`;
+                    });
+                    html += `</div>`;
+                    list.innerHTML += html;
+                }
+            });
+        }
+
+        const options = { weekday: 'long', day: 'numeric', month: 'long' };
+        document.getElementById('current-date').innerText = new Date().toLocaleDateString('id-ID', options);
+        render();
+    </script>
+</body>
+</html>
